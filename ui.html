@@ -1,17 +1,628 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<!-- ui.html -->
+<!DOCTYPE html>
+<html>
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
-}
+<head>
+    <meta charset="utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+        :root {
+            --bg-main: #222222;
+            --bg-code: #1E1E1E;
+            --accent-blue: #0A78D6;
+            --accent-orange: #FF9E00;
+            --text-white: #FFFFFF;
+            --text-secondary: #999999;
+            --tab-border: #3A3A3A;
+            --tab-selected-bg: #2E2E32;
+            --tab-unselected-bg: #252528;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
-</script>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-white);
+            font-family: var(--font-sans);
+            width: 600px;
+            height: 443px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        .header-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .brand-name {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            line-height: 1;
+        }
+
+        .brand-subtext {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .selection-info {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 2px;
+            font-size: 14px;
+        }
+
+        .selection-label {
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .selection-name {
+            color: var(--accent-orange);
+            font-weight: 600;
+        }
+
+        .copy-button {
+            background-color: var(--accent-blue);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 16px;
+        }
+
+        .copy-button:hover {
+            opacity: 0.9;
+        }
+
+        .tab-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab {
+            height: 30px;
+            padding: 0 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid var(--tab-border);
+            color: var(--text-secondary);
+            background: var(--tab-unselected-bg);
+            transition: all 0.2s;
+        }
+
+        .tab-selected {
+            background-color: var(--tab-selected-bg);
+            color: var(--text-white);
+            border-color: #4A4A4A;
+        }
+
+        ::-webkit-scrollbar {
+            width: 14px;
+            height: 14px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border: 4px solid rgba(0, 0, 0, 0);
+            border-radius: 9999px;
+            background-clip: padding-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.35);
+            border: 4px solid rgba(0, 0, 0, 0);
+            background-clip: padding-box;
+        }
+
+        .code-area {
+            flex: 1;
+            background-color: var(--bg-code);
+            border: 1px solid #383838;
+            border-radius: 6px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: auto;
+        }
+
+        .placeholder-text {
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            position: absolute;
+        }
+
+        pre {
+            width: 100%;
+            margin: 0 !important;
+            padding: 16px !important;
+            background: transparent !important;
+            display: none;
+        }
+
+        .code-display {
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 13px !important;
+            line-height: 1.6 !important;
+            text-shadow: none !important;
+        }
+
+        .code-area.has-content {
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        .code-area.has-content .placeholder-text {
+            display: none;
+        }
+
+        .code-area.has-content pre {
+            display: block;
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism-themes/1.9.0/prism-atom-dark.min.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div class="header-wrapper">
+        <div class="header-content">
+            <div class="brand-name">Converto</div>
+            <div class="brand-subtext">Convert your Figma design to Any code</div>
+            <div class="selection-info">
+                <span class="selection-label">Frame:</span>
+                <span id="selectedFrameName" class="selection-name">Default/Empty state</span>
+            </div>
+        </div>
+        <button id="copy-btn" class="copy-button">Copy code</button>
+    </div>
+
+    <div class="tab-row">
+        <div class="tab tab-selected" data-lang="flutter">Flutter</div>
+        <div class="tab" data-lang="html">HTML</div>
+        <div class="tab" data-lang="css">CSS</div>
+        <div class="tab" data-lang="jetpack">Jetpack</div>
+    </div>
+
+    <div id="code-area" class="code-area">
+        <div id="placeholder" class="placeholder-text">Select Frame</div>
+        <pre><code id="code-output" class="code-display language-dart"></code></pre>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-dart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-kotlin.min.js"></script>
+
+    <script>
+        const codeOutput = document.getElementById('code-output');
+        const codeArea = document.getElementById('code-area');
+        const selectedFrameName = document.getElementById('selectedFrameName');
+        const tabs = document.querySelectorAll('.tab');
+        const copyBtn = document.getElementById('copy-btn');
+
+        let currentSelection = null;
+        let activeLang = 'flutter';
+        let cssClasses = {};
+
+        // ─── Message from plugin ───────────────────────────────────────────
+        window.onmessage = (event) => {
+            const msg = event.data.pluginMessage;
+            if (msg?.type === 'selection-change') {
+                currentSelection = msg.data;
+                updateUI();
+            }
+        };
+
+        tabs.forEach(tab => {
+            tab.onclick = () => {
+                tabs.forEach(t => t.classList.remove('tab-selected'));
+                tab.classList.add('tab-selected');
+                activeLang = tab.getAttribute('data-lang');
+                updateUI();
+            };
+        });
+
+        // ─── Helpers ───────────────────────────────────────────────────────
+
+        function pad(indent) { return '  '.repeat(indent); }
+
+        /** Resolve a color value to Flutter expression */
+        function colorExpr(fill, context = true) {
+            if (!fill) return 'Colors.transparent';
+            if (fill.variable) {
+                return context
+                    ? `Theme.of(context).colorScheme.${fill.variable}`
+                    : `colorScheme.${fill.variable}`;
+            }
+            return `const Color(${fill.color})`;
+        }
+
+        /** Map Figma fontWeight number → Flutter FontWeight constant */
+        function fontWeightExpr(w) {
+            const n = typeof w === 'number' ? w : 400;
+            if (n >= 900) return 'FontWeight.w900';
+            if (n >= 800) return 'FontWeight.w800';
+            if (n >= 700) return 'FontWeight.w700';
+            if (n >= 600) return 'FontWeight.w600';
+            if (n >= 500) return 'FontWeight.w500';
+            if (n >= 300) return 'FontWeight.w300';
+            if (n >= 200) return 'FontWeight.w200';
+            if (n >= 100) return 'FontWeight.w100';
+            return null; // w400 is default, skip
+        }
+
+        /** Map Figma primary axis → Flutter MainAxisAlignment */
+        function mainAxisExpr(a) {
+            switch (a) {
+                case 'CENTER': return 'center';
+                case 'SPACE_BETWEEN': return 'spaceBetween';
+                case 'MAX': return 'end';
+                default: return 'start';
+            }
+        }
+
+        /** Map Figma counter axis → Flutter CrossAxisAlignment */
+        function crossAxisExpr(a) {
+            switch (a) {
+                case 'CENTER': return 'center';
+                case 'MAX': return 'end';
+                case 'BASELINE': return 'baseline';
+                default: return 'start';
+            }
+        }
+
+        /** Build EdgeInsets string from padding values */
+        function edgeInsets(l, t, r, b) {
+            if (l === r && t === b) {
+                if (l === t) return `const EdgeInsets.all(${l})`;
+                return `const EdgeInsets.symmetric(horizontal: ${l}, vertical: ${t})`;
+            }
+            if (l === 0 && r === 0) return `const EdgeInsets.symmetric(vertical: ${t})`;
+            if (t === 0 && b === 0) return `const EdgeInsets.symmetric(horizontal: ${l})`;
+            return `const EdgeInsets.fromLTRB(${l}, ${t}, ${r}, ${b})`;
+        }
+
+        /** Build BoxDecoration string */
+        function buildDecoration(node, p) {
+            const fill = node.fills?.[0];
+            const hasFill = !!fill;
+            const hasRadius = !!node.cornerRadius || node.cornerRadiusTL != null;
+            const hasStroke = !!node.strokeColor;
+            if (!hasFill && !hasRadius && !hasStroke) return null;
+
+            let lines = [];
+            if (hasFill) lines.push(`${pad(p + 2)}color: ${colorExpr(fill)},`);
+
+            // Border radius
+            if (node.cornerRadius) {
+                lines.push(`${pad(p + 2)}borderRadius: BorderRadius.circular(${node.cornerRadius}),`);
+            } else if (node.cornerRadiusTL != null) {
+                lines.push(`${pad(p + 2)}borderRadius: BorderRadius.only(`);
+                lines.push(`${pad(p + 3)}topLeft: Radius.circular(${node.cornerRadiusTL}),`);
+                lines.push(`${pad(p + 3)}topRight: Radius.circular(${node.cornerRadiusTR}),`);
+                lines.push(`${pad(p + 3)}bottomLeft: Radius.circular(${node.cornerRadiusBL}),`);
+                lines.push(`${pad(p + 3)}bottomRight: Radius.circular(${node.cornerRadiusBR}),`);
+                lines.push(`${pad(p + 2)}),`);
+            }
+
+            if (hasStroke) {
+                lines.push(`${pad(p + 2)}border: Border.all(color: const Color(${node.strokeColor}), width: ${node.strokeWidth}),`);
+            }
+
+            return `BoxDecoration(\n${lines.join('\n')}\n${pad(p + 1)})`;
+        }
+
+        // ─── Flutter Code Generator ────────────────────────────────────────
+
+        function generateFlutterWidget(node, indent = 0) {
+            if (!node) return '';
+            const p = indent;
+
+            // ── Vector / Icon node ──
+            if (node.isVector) {
+                return `${pad(p)}SizedBox(\n${pad(p + 1)}width: ${node.width},\n${pad(p + 1)}height: ${node.height},\n${pad(p + 1)}// TODO: Replace with SvgPicture.asset('assets/icons/${node.name.toLowerCase().replace(/\s+/g, '_')}.svg')\n${pad(p + 1)}child: const Icon(Icons.image, size: ${Math.min(node.width, node.height)}),\n${pad(p)})`;
+            }
+
+            // ── Text node ──
+            if (node.type === 'TEXT') {
+                const fill = node.fills?.[0];
+                const color = colorExpr(fill);
+                let styleProps = [`fontSize: ${node.fontSize}`];
+                styleProps.push(`color: ${color}`);
+
+                const fw = fontWeightExpr(node.fontWeight);
+                if (fw) styleProps.push(`fontWeight: ${fw}`);
+
+                if (node.lineHeight) styleProps.push(`height: ${(node.lineHeight / node.fontSize).toFixed(2)}`);
+                if (node.letterSpacing) styleProps.push(`letterSpacing: ${node.letterSpacing}`);
+
+                const textAlign = node.textAlign && node.textAlign !== 'LEFT'
+                    ? `, textAlign: ${node.textAlign === 'CENTER' ? 'TextAlign.center' : node.textAlign === 'RIGHT' ? 'TextAlign.right' : 'TextAlign.justify'}`
+                    : '';
+
+                const escaped = node.characters.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+                return `${pad(p)}Text(\n${pad(p + 1)}'${escaped}',\n${pad(p + 1)}style: TextStyle(${styleProps.join(', ')}),${textAlign}\n${pad(p)})`;
+            }
+
+            // ── Children ──
+            let childrenCode = [];
+            if (node.children && node.children.length > 0) {
+                node.children.forEach((child, i) => {
+                    const childStr = generateFlutterWidget(child, p + 2);
+                    if (childStr) childrenCode.push(childStr);
+
+                    // SizedBox gap between siblings
+                    if (node.itemSpacing > 0 && i < node.children.length - 1) {
+                        const spacer = node.layoutMode === 'HORIZONTAL'
+                            ? `width: ${node.itemSpacing}`
+                            : `height: ${node.itemSpacing}`;
+                        childrenCode.push(`${pad(p + 2)}const SizedBox(${spacer})`);
+                    }
+                });
+            }
+
+            // ── Layout body ──
+            let body = '';
+            if (node.layoutMode === 'HORIZONTAL' || node.layoutMode === 'VERTICAL') {
+                const widget = node.layoutMode === 'HORIZONTAL' ? 'Row' : 'Column';
+                const mainAlign = mainAxisExpr(node.primaryAxisAlignItems);
+                const crossAlign = crossAxisExpr(node.counterAxisAlignItems);
+
+                const alignLines = [];
+                if (mainAlign !== 'start') alignLines.push(`${pad(p + 1)}mainAxisAlignment: MainAxisAlignment.${mainAlign},`);
+                if (crossAlign !== 'start') alignLines.push(`${pad(p + 1)}crossAxisAlignment: CrossAxisAlignment.${crossAlign},`);
+
+                body = `${widget}(\n${alignLines.join('\n')}${alignLines.length ? '\n' : ''}${pad(p + 1)}children: [\n${childrenCode.join(',\n')},\n${pad(p + 1)}],\n${pad(p)})`;
+            } else if (childrenCode.length > 0) {
+                body = `Stack(\n${pad(p + 1)}children: [\n${childrenCode.join(',\n')},\n${pad(p + 1)}],\n${pad(p)})`;
+            } else {
+                body = `const SizedBox()`;
+            }
+
+            // ── Container wrapper ──
+            let containerProps = [];
+
+            // Width / height — only when not driven by auto-layout fill
+            if (node.width && !node.fill && indent > 0) containerProps.push(`width: ${node.width}`);
+            if (node.height && !node.hug && indent > 0) containerProps.push(`height: ${node.height}`);
+
+            // Padding
+            const { paddingLeft: l = 0, paddingTop: t = 0, paddingRight: r = 0, paddingBottom: b = 0 } = node;
+            if (l || t || r || b) containerProps.push(`padding: ${edgeInsets(l, t, r, b)}`);
+
+            // Decoration (color + radius + stroke)
+            const deco = buildDecoration(node, p);
+            if (deco) {
+                containerProps.push(`decoration: ${deco}`);
+            }
+
+            // Opacity wrapper
+            const hasOpacity = node.opacity != null && node.opacity < 1;
+
+            if (containerProps.length > 0) {
+                const inner = `${pad(p)}Container(\n${containerProps.map(prop => `${pad(p + 1)}${prop},`).join('\n')}\n${pad(p + 1)}child: ${body.trim()},\n${pad(p)})`;
+                if (hasOpacity) {
+                    return `${pad(p)}Opacity(\n${pad(p + 1)}opacity: ${node.opacity.toFixed(2)},\n${pad(p + 1)}child: ${inner.trim()},\n${pad(p)})`;
+                }
+                return inner;
+            }
+
+            if (hasOpacity) {
+                return `${pad(p)}Opacity(\n${pad(p + 1)}opacity: ${node.opacity.toFixed(2)},\n${pad(p + 1)}child: ${body.trim()},\n${pad(p)})`;
+            }
+
+            return `${pad(p)}${body.trim()}`;
+        }
+
+        // ─── HTML Generator ────────────────────────────────────────────────
+
+        function generateHTML(node, indent = 0) {
+            const p = '  '.repeat(indent);
+            if (!node) return '';
+
+            const className = node.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+            let css = [];
+
+            if (node.layoutMode && node.layoutMode !== 'NONE') {
+                css.push('display: flex;');
+                if (node.layoutMode === 'VERTICAL') css.push('flex-direction: column;');
+                if (node.itemSpacing) css.push(`gap: ${node.itemSpacing}px;`);
+                const { paddingLeft: l = 0, paddingTop: t = 0, paddingRight: r = 0, paddingBottom: b = 0 } = node;
+                if (l || t || r || b) css.push(`padding: ${t}px ${r}px ${b}px ${l}px;`);
+                if (node.primaryAxisAlignItems === 'SPACE_BETWEEN') css.push('justify-content: space-between;');
+                else if (node.primaryAxisAlignItems === 'CENTER') css.push('justify-content: center;');
+                if (node.counterAxisAlignItems === 'CENTER') css.push('align-items: center;');
+            }
+
+            if (node.width && indent > 0) css.push(`width: ${node.width}px;`);
+            if (node.height && indent > 0) css.push(`height: ${node.height}px;`);
+
+            const fill = node.fills?.[0];
+            if (fill?.color && !fill.variable) {
+                const hex = '#' + fill.color.substring(4); // strip 0xFF
+                css.push(`background: ${hex};`);
+            } else if (fill?.variable) {
+                css.push(`background: var(--${fill.variable});`);
+            }
+
+            if (node.cornerRadius) css.push(`border-radius: ${node.cornerRadius}px;`);
+            if (node.strokeColor) css.push(`border: ${node.strokeWidth ?? 1}px solid #${node.strokeColor.substring(4)};`);
+            if (node.opacity != null && node.opacity < 1) css.push(`opacity: ${node.opacity.toFixed(2)};`);
+
+            if (css.length > 0) cssClasses[className] = css;
+
+            if (node.type === 'TEXT') {
+                return `${p}<span class="${className}">${node.characters}</span>`;
+            }
+
+            if (node.children && node.children.length > 0) {
+                const childCode = node.children.map(c => generateHTML(c, indent + 1)).join('\n');
+                return `${p}<div class="${className}">\n${childCode}\n${p}</div>`;
+            }
+            return `${p}<div class="${className}"></div>`;
+        }
+
+        function getCSSCode() {
+            let code = '';
+            for (const [cls, rules] of Object.entries(cssClasses)) {
+                code += `.${cls} {\n  ${rules.join('\n  ')}\n}\n\n`;
+            }
+            return code;
+        }
+
+        // ─── Jetpack Compose Generator ─────────────────────────────────────
+
+        function generateJetpack(node, indent = 0) {
+            const p = '  '.repeat(indent);
+            if (!node) return '';
+
+            if (node.isVector) {
+                return `${p}Icon(imageVector = Icons.Default.Image, contentDescription = "${node.name}")`;
+            }
+
+            if (node.type === 'TEXT') {
+                const fill = node.fills?.[0];
+                const colorStr = fill?.variable
+                    ? `MaterialTheme.colorScheme.${fill.variable}`
+                    : fill?.color ? `Color(${fill.color})` : 'Color.Black';
+                const fw = node.fontWeight >= 700 ? ', fontWeight = FontWeight.Bold' : node.fontWeight >= 600 ? ', fontWeight = FontWeight.SemiBold' : '';
+                return `${p}Text(\n${p}  text = "${node.characters.replace(/\n/g, '\\n')}",\n${p}  style = TextStyle(fontSize = ${node.fontSize}.sp, color = ${colorStr}${fw})\n${p})`;
+            }
+
+            const widget = node.layoutMode === 'HORIZONTAL' ? 'Row' : node.layoutMode === 'VERTICAL' ? 'Column' : 'Box';
+
+            // Modifier chain
+            let modifiers = [];
+            if (node.width && indent > 0) modifiers.push(`width = ${node.width}.dp`);
+            if (node.height && indent > 0) modifiers.push(`height = ${node.height}.dp`);
+            const { paddingLeft: l = 0, paddingTop: t = 0, paddingRight: r = 0, paddingBottom: b = 0 } = node;
+            if (l || t || r || b) modifiers.push(`padding(start = ${l}.dp, top = ${t}.dp, end = ${r}.dp, bottom = ${b}.dp)`);
+            const fill = node.fills?.[0];
+            if (fill) modifiers.push(`background(${fill.variable ? `MaterialTheme.colorScheme.${fill.variable}` : `Color(${fill.color})`})`);
+
+            const modStr = modifiers.length > 0
+                ? `,\n${p}  modifier = Modifier.${modifiers.join('.')}`
+                : '';
+
+            const arrangementH = node.primaryAxisAlignItems === 'SPACE_BETWEEN' ? ',\n' + p + '  horizontalArrangement = Arrangement.SpaceBetween' : '';
+            const arrangementV = node.primaryAxisAlignItems === 'CENTER' ? ',\n' + p + '  verticalAlignment = Alignment.CenterVertically' : '';
+
+            let childrenCode = '';
+            if (node.children && node.children.length > 0) {
+                const childStrings = node.children.map(c => generateJetpack(c, indent + 1));
+                if (node.itemSpacing > 0) {
+                    const spacer = node.layoutMode === 'HORIZONTAL'
+                        ? `${p}  Spacer(modifier = Modifier.width(${node.itemSpacing}.dp))`
+                        : `${p}  Spacer(modifier = Modifier.height(${node.itemSpacing}.dp))`;
+                    childrenCode = ` {\n${childStrings.join('\n' + spacer + '\n')}\n${p}}`;
+                } else {
+                    childrenCode = ` {\n${childStrings.join('\n')}\n${p}}`;
+                }
+            }
+
+            return `${p}${widget}(${modStr}${arrangementH}${arrangementV})${childrenCode}`;
+        }
+
+        // ─── UI Update ─────────────────────────────────────────────────────
+
+        function updateUI() {
+            if (!currentSelection) {
+                codeArea.classList.remove('has-content');
+                selectedFrameName.innerText = 'Default/Empty state';
+                return;
+            }
+
+            selectedFrameName.innerText = currentSelection.name;
+            codeArea.classList.add('has-content');
+            let code = '';
+
+            if (activeLang === 'flutter') {
+                const widgetBody = generateFlutterWidget(currentSelection, 2);
+                const rawName = (currentSelection.name || 'MyWidget').replace(/[^a-zA-Z0-9]/g, '');
+                const className = (rawName.charAt(0).toUpperCase() + rawName.slice(1)) || 'MyWidget';
+
+                code =
+                    `class ${className} extends StatelessWidget {
+  const ${className}({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ${widgetBody.trim()};
+  }
+}`;
+                codeOutput.className = 'code-display language-dart';
+
+            } else if (activeLang === 'html') {
+                cssClasses = {};
+                code = generateHTML(currentSelection);
+                codeOutput.className = 'code-display language-markup';
+
+            } else if (activeLang === 'css') {
+                cssClasses = {};
+                generateHTML(currentSelection);
+                code = getCSSCode();
+                codeOutput.className = 'code-display language-css';
+
+            } else if (activeLang === 'jetpack') {
+                code = generateJetpack(currentSelection);
+                codeOutput.className = 'code-display language-kotlin';
+            }
+
+            codeOutput.textContent = code;
+            if (window.Prism) Prism.highlightElement(codeOutput);
+        }
+
+        // ─── Copy Button ───────────────────────────────────────────────────
+
+        copyBtn.onclick = () => {
+            const hiddenCopy = document.createElement('textarea');
+            hiddenCopy.value = codeOutput.textContent;
+            hiddenCopy.style.position = 'absolute';
+            hiddenCopy.style.left = '-9999px';
+            document.body.appendChild(hiddenCopy);
+            hiddenCopy.select();
+            document.execCommand('copy');
+            document.body.removeChild(hiddenCopy);
+            copyBtn.innerText = 'Copied!';
+            setTimeout(() => copyBtn.innerText = 'Copy code', 2000);
+        };
+    </script>
+</body>
+
+</html>
